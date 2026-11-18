@@ -10,7 +10,7 @@ import {
   TransactionColumn,
 } from "@app/types";
 
-/** A row that couldn't be read, by its 1-based line number in the file (header = line 1). */
+/** A row that couldn't be read, by its 1-based record number in the file (blank lines skipped). */
 export interface RowProblem {
   line: number;
   message: string;
@@ -60,7 +60,7 @@ export function normalizeRows(csv: ParsedCsv, columnMap: ColumnMapEntry[], dateF
   const rows: ImportTransactionRow[] = [];
   const problems: RowProblem[] = [];
   csv.rows.forEach((cells, index) => {
-    const line = index + 2;
+    const line = index + csv.firstLine;
     const {
       text, extra,
     } = collect(cells, columnMap);

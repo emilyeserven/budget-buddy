@@ -7,7 +7,7 @@ import { accounts, csvFormats, entities, transactions } from "@/db/schema";
 import { createFakeDb, resetFakeIds } from "@/tests/testDbHelpers";
 
 /**
- * `services/transactions.ts` import path against the in-memory fake `db` (see `items.test.ts` for
+ * `services/transactions.ts` import path against the in-memory fake `db` (see `entities.test.ts` for
  * the recipe): count-based dedup, payee find-or-create, sign inversion, and saving a new format.
  */
 
@@ -238,4 +238,21 @@ test("listTransactions joins payee and account names", async () => {
   const [listed] = await listTransactions();
   assert.equal(listed.payeeName, "NORTHWIND UTILITIES");
   assert.equal(listed.accountName, "Checking");
+});
+
+test("a headerless format is saved with null headers", async () => {
+  reset();
+  await importTransactions({
+    accountId: ACCOUNT_ID,
+    newFormat: {
+      columnMap: [{
+        columnIndex: 0,
+        transactionCol: TransactionColumn.Date,
+      }],
+      headers: null,
+      dateFormat: DateFormat.US,
+    },
+    rows: [csvRow()],
+  });
+  assert.equal(formatRows[0].headers, null);
 });

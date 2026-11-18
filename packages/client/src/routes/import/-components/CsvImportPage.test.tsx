@@ -100,4 +100,29 @@ describe("CsvImportPage", () => {
       name: "Import",
     })).toBeDisabled();
   });
+
+  it("detects a headerless file, labels its columns, and lists every row on demand", async () => {
+    stubApi([]);
+    await renderWithRouter(<CsvImportPage />);
+    const input = screen.getByLabelText("CSV file");
+    fireEvent.change(input, {
+      target: {
+        files: [new File(["3/11/2025,CORNER BAKERY,6.50\n3/10/2025,NORTHWIND UTILITIES,42.17\n3/9/2025,PIXEL ARCADE,30.00\n"], "noheader.csv", {
+          type: "text/csv",
+        })],
+      },
+    });
+    await screen.findByText(/noheader\.csv: 3 rows, 3 columns/);
+    expect(screen.getByRole("checkbox", {
+      name: /First row is a header/,
+    })).not.toBeChecked();
+    expect(screen.getByLabelText("Map column Column 1")).toBeInTheDocument();
+
+    // Once in the 5-row preview; the full listing adds a second copy when opened.
+    expect(screen.getAllByText("PIXEL ARCADE")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", {
+      name: "All rows in the file (3)",
+    }));
+    expect(await screen.findAllByText("PIXEL ARCADE")).toHaveLength(2);
+  });
 });

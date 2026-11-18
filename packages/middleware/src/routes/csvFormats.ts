@@ -42,7 +42,7 @@ const csvFormatSchema = {
     },
     columnMap: columnMapSchema,
     headers: {
-      type: "array",
+      type: ["array", "null"],
       items: {
         type: "string",
       },
@@ -62,7 +62,7 @@ const csvFormatSchema = {
 /** `CreateCsvFormatInput` — also embedded as `newFormat` in the transaction import body. */
 export const createCsvFormatBody = {
   type: "object",
-  required: ["columnMap", "headers", "dateFormat"],
+  required: ["columnMap", "dateFormat"],
   additionalProperties: false,
   properties: {
     name: {
@@ -78,7 +78,7 @@ export const createCsvFormatBody = {
     },
     columnMap: columnMapSchema,
     headers: {
-      type: "array",
+      type: ["array", "null"],
       items: {
         type: "string",
       },

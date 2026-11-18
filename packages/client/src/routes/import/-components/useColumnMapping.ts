@@ -22,11 +22,17 @@ export function useColumnMapping() {
   const [dateFormat, setDateFormat] = useState<DateFormat>(DateFormat.US);
   const [formatName, setFormatName] = useState("");
 
+  // Pads with IGNORE: toggling the header row can widen the column count after a reset.
   const setChoice = (index: number, choice: ColumnChoice) =>
-    setChoices(prev => prev.map((existing, i) => (i === index ? choice : existing)));
+    setChoices((prev) => {
+      const next = [...prev];
+      while (next.length <= index) next.push(IGNORE);
+      next[index] = choice;
+      return next;
+    });
 
   const reset = (csv: ParsedCsv) => {
-    setChoices(csv.headers.map(() => IGNORE));
+    setChoices(csv.labels.map(() => IGNORE));
     setDateFormat(detectFromCsv(csv));
     setFormatName("");
   };

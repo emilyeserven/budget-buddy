@@ -103,4 +103,29 @@ describe("normalizeRows", () => {
       },
     ]);
   });
+
+  it("numbers rows from 1 when the file has no header", () => {
+    const csv = parseCsv("soon,1,A\n3/2/2025,3,C\n", false);
+    const {
+      rows, problems,
+    } = normalizeRows(csv, [
+      {
+        columnIndex: 0,
+        transactionCol: TransactionColumn.Date,
+      },
+      {
+        columnIndex: 1,
+        transactionCol: TransactionColumn.Total,
+      },
+      {
+        columnIndex: 2,
+        transactionCol: TransactionColumn.Payee,
+      },
+    ], DateFormat.US);
+    expect(rows).toHaveLength(1);
+    expect(problems).toEqual([{
+      line: 1,
+      message: "unreadable date",
+    }]);
+  });
 });

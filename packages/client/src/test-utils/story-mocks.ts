@@ -1,19 +1,9 @@
 import { EntityType } from "@app/types";
 import { http, HttpResponse } from "msw";
 
-import { makeAccount, makeCsvFormat, makeEntity, makeItem, makeTransaction } from "./factories";
+import { makeAccount, makeCsvFormat, makeEntity, makeTransaction } from "./factories";
 
 /** Sample data shared by stories. */
-export const sampleItems = [
-  makeItem(),
-  makeItem({
-    id: "item-2",
-    name: "Second item",
-    slug: "second-item",
-    description: "With a description",
-  }),
-];
-
 export const sampleEntities = [
   makeEntity({
     id: "entity-1",
@@ -55,22 +45,6 @@ export const sampleTransactions = [
  * here — unit tests stub `fetch` or mock modules instead (see the `test-structure` skill).
  */
 export const apiHandlers = [
-  http.get("/api/items", () => HttpResponse.json(sampleItems)),
-  http.post("/api/items", async ({
-    request,
-  }) => {
-    const body = await request.json() as { name: string };
-    return HttpResponse.json(makeItem({
-      id: "item-new",
-      name: body.name,
-    }), {
-      status: 201,
-    });
-  }),
-  http.patch("/api/items/:id", () => HttpResponse.json(sampleItems[0])),
-  http.delete("/api/items/:id", () => new HttpResponse(null, {
-    status: 204,
-  })),
   http.get("/api/entities", () => HttpResponse.json(sampleEntities)),
   http.post("/api/entities", async ({
     request,

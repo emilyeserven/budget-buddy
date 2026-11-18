@@ -8,7 +8,7 @@ description: >-
   AppError subclass", "what status code for a duplicate/built-in/not-found", "the toast shows the
   wrong text for X", "should this route hand-roll reply.code", or when
   a route needs to surface an external-fetch failure. Mirrors the `NotFoundError` (404) /
-  `DuplicateNameError` (409) / `ValidationError` (400) / `StorageUnconfiguredError` (503) subclasses in
+  `DuplicateNameError` (409) / `ConflictError` (409) / `ValidationError` (400) / `StorageUnconfiguredError` (503) subclasses in
   `utils/errors.ts`. Also covers maintaining the contract — "normalize a route that hand-rolls an error
   body", "add params to an error".
 ---
@@ -44,7 +44,7 @@ union* returned by a helper (below), and even then it must use the envelope shap
   into an `ApiError` (`packages/client/src/lib/apiError.ts`) carrying `code`/`params`.
   `describeError(err, fallback?)` resolves display text: the server's `message` → else a plain
   Error's message → else the fallback. Mutations toast with
-  `notifyError(describeError(err))` (see `hooks/useItems.ts`).
+  `notifyError(describeError(err))` (see `hooks/useEntities.ts`).
 
 ## Status conventions
 
@@ -55,8 +55,8 @@ union* returned by a helper (below), and even then it must use the envelope shap
 | 400 | Multipart upload with no file part | `noFileUploaded` (`NoFileUploadedError`) |
 | 403 | A built-in/seeded record can't be renamed or deleted | `builtInImmutable` (no subclass yet — see below) |
 | 404 | Looked-up entity doesn't exist | `notFound` (`NotFoundError`) |
-| 409 | Uniqueness collision (name/slug) | `duplicateName` (`DuplicateNameError`) |
-| 409 | Concurrency / state conflict | `conflict` (bare `AppError`) |
+| 409 | Uniqueness collision (name) | `duplicateName` (`DuplicateNameError`) |
+| 409 | State conflict — e.g. deleting a row others still reference | `conflict` (`ConflictError`) |
 | 503 | Optional dependency (object storage) not configured | `storageUnconfigured` (`StorageUnconfiguredError`) |
 | 502 | External provider unreachable (**discriminated-result route only**) | see below |
 
@@ -67,7 +67,7 @@ Ask **"where does the failure come from?"**
 - **A domain / validation / uniqueness / permission / not-found failure → `throw` an `AppError`.**
   Never catch it in the route to rewrite the body — let it propagate. Reuse a generic subclass; or
   define a small subclass; or throw a **bare `AppError` with an existing code** when nothing reusable
-  fits (`throw new AppError("An import is already running", "conflict", 409)`).
+  fits (`throw new AppError("Built-in rows can't be deleted", "builtInImmutable", 403)`).
 - **A helper that models failure as *returned data* (a discriminated result union), not an exception
   → the route may `reply.code().send(...)`.** This is the sanctioned exception, for external-fetch / IO
   helpers where an exception across the boundary would be awkward. **The body must still be the
@@ -77,7 +77,7 @@ Ask **"where does the failure come from?"**
 
   ```ts
   const result = await fetchRemoteThing(id);           // returns "not_found" | { kind, detail } | Thing
-  if (result === "not_found") throw new NotFoundError("Item");
+  if (result === "not_found") throw new NotFoundError("Entity");
   if ("kind" in result) {
     return reply.code(502).send({
       message: "Could not reach the provider",
@@ -95,7 +95,7 @@ line — see "Server owns the phrasing" below.
 ## Recipe — add / surface an error
 
 1. **Reuse an existing subclass** when the meaning fits — `throw new NotFoundError("Widget")`,
-   `throw new DuplicateNameError("widget", name)` (as `services/items.ts` does in `assertNameFree`).
+   `throw new DuplicateNameError("widget", name)` (as `services/entities.ts` does in `assertNameFree`).
    `entity` is a label interpolated into the message and echoed in `params`. Nothing else to do.
 2. **New subclass** — when the same failure is thrown from several places. Generic, reusable ones go
    in `utils/errors.ts`; a domain-specific one can sit at the top of the service that throws it:
@@ -119,8 +119,8 @@ reword it — change the source message instead, and keep the `code` intact.
 
 ## Known gaps / deviations
 
-- `builtInImmutable` and `conflict` are in the `ErrorCode` union but have **no named subclass** yet —
-  add one (step 2) the first time you need it.
+- `builtInImmutable` is in the `ErrorCode` union but has **no named subclass** yet — add one (step 2)
+  the first time you need it.
 
 ## Verify
 

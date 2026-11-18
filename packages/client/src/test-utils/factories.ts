@@ -1,4 +1,4 @@
-import type { Account, CsvFormat, Entity, Item, Transaction } from "@app/types";
+import type { Account, CsvFormat, Entity, Transaction } from "@app/types";
 
 import { AccountType, DateFormat, EntityType, TransactionColumn } from "@app/types";
 
@@ -8,18 +8,6 @@ import { AccountType, DateFormat, EntityType, TransactionColumn } from "@app/typ
  * literal, which silently drifts when the shared type changes. When you add a field to a shared
  * type, update its factory's defaults; a new shared entity gets a factory here in the same change.
  */
-export function makeItem(overrides: Partial<Item> = {}): Item {
-  return {
-    id: "item-1",
-    name: "Example item",
-    slug: "example-item",
-    description: null,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    ...overrides,
-  };
-}
-
 export function makeEntity(overrides: Partial<Entity> = {}): Entity {
   return {
     id: "entity-1",

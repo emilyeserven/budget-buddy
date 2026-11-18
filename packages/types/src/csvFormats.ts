@@ -39,8 +39,11 @@ export interface CsvFormat {
   institutionId: string | null;
   accountId: string | null;
   columnMap: ColumnMapEntry[];
-  /** The header row the format was created from — used to rank exact matches first. */
-  headers: string[];
+  /**
+   * The header row the format was created from (used to rank exact matches first), or null when
+   * the export has no header row — every row is then data.
+   */
+  headers: string[] | null;
   dateFormat: DateFormat;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +56,7 @@ export interface CreateCsvFormatInput {
   institutionId?: string | null;
   accountId?: string | null;
   columnMap: ColumnMapEntry[];
-  headers: string[];
+  /** Omit or null when the export has no header row. */
+  headers?: string[] | null;
   dateFormat: DateFormat;
 }

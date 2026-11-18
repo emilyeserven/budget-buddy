@@ -42,15 +42,6 @@ const timestamps = {
   }).notNull().defaultNow(),
 };
 
-/** Example entity — rename or replace it when you start a real project. */
-export const items = pgTable("items", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  description: text("description"),
-  ...timestamps,
-});
-
 /** Merchants, institutions, friends, household members — anyone a transaction involves. */
 export const entities = pgTable("entities", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -86,7 +77,8 @@ export const csvFormats = pgTable("csv_formats", {
     onDelete: "set null",
   }),
   columnMap: jsonb("column_map").$type<ColumnMapEntry[]>().notNull(),
-  headers: jsonb("headers").$type<string[]>().notNull(),
+  /** Null when the export has no header row. */
+  headers: jsonb("headers").$type<string[]>(),
   dateFormat: text("date_format", {
     enum: enumValues(DateFormat),
   }).notNull(),

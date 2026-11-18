@@ -1,9 +1,9 @@
-# app-core
+# Budget Buddy
 
-A self-hostable, full-stack TypeScript starter: **Fastify + Drizzle/Postgres** API, **React 19 +
-Vite + TanStack Router/Query/Form + Tailwind 4 + shadcn/ui** client, and a single-container
-**gateway** for production. It ships one tiny example feature (**Items**) so everything builds,
-runs, and is tested end-to-end — replace it with your own.
+A self-hostable personal-finance app: import bank and credit-card CSV exports (re-imports skip rows
+already stored), and browse transactions, accounts, and entities. Built on the app-core starter:
+**Fastify + Drizzle/Postgres** API, **React 19 + Vite + TanStack Router/Query/Table + Tailwind 4 +
+shadcn/ui** client, and a single-container **gateway** for production.
 
 It is designed to deploy on modest hardware, including a **Raspberry Pi 4/5** (64-bit OS), and to be
 vibe-coded with [Claude Code](https://code.claude.com/): the `.claude/skills/` folder holds recipes
@@ -31,8 +31,8 @@ pnpm typecheck && pnpm lint && pnpm test
 git add -A && git commit -m "chore: initial commit from app-core"
 ```
 
-Then read `CLAUDE.md` (architecture + conventions) and start replacing the Items example — the
-`add-entity` skill walks through adding a new entity end-to-end.
+Then read `CLAUDE.md` (architecture + conventions) — the `add-entity` skill walks through adding a
+new entity end-to-end, using Entities as the reference.
 
 ## Architecture
 
@@ -58,7 +58,7 @@ pnpm dev          # starts Postgres (docker compose), pushes the schema, runs al
 
 - Client: http://localhost:5173 (proxies `/api` to the middleware)
 - API: http://localhost:3001 — Swagger UI at http://localhost:3001/docs
-- Storybook: `pnpm --filter=@app/client storybook` → http://localhost:6006
+- Storybook: `pnpm storybook` → http://localhost:6006
 
 ### Useful commands
 

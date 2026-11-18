@@ -10,7 +10,6 @@ import { csvFormatRoutes } from "@/routes/csvFormats";
 import { entityRoutes } from "@/routes/entities";
 import { fileRoutes } from "@/routes/files";
 import { healthRoutes } from "@/routes/health";
-import { itemRoutes } from "@/routes/items";
 import { transactionRoutes } from "@/routes/transactions";
 import { errorHandler } from "@/utils/errorHandler";
 
@@ -78,10 +77,6 @@ export async function buildApp(): Promise<FastifyInstance> {
             description: "Service health",
           },
           {
-            name: "items",
-            description: "Example CRUD entity",
-          },
-          {
             name: "entities",
             description: "Merchants, institutions, friends and household members",
           },
@@ -126,7 +121,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(healthRoutes);
-  await app.register(itemRoutes);
   await app.register(fileRoutes);
   await app.register(entityRoutes);
   await app.register(accountRoutes);

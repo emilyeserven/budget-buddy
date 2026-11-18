@@ -4,7 +4,12 @@ import { EntityType } from "@app/types";
 import { accounts, csvFormats, entities, transactions } from "@/db/schema";
 import { createFakeDb, resetFakeIds } from "@/tests/testDbHelpers";
 
-/** `services/entities.ts` against the in-memory fake `db` (recipe: `items.test.ts`). */
+/**
+ * `services/entities.ts` exercised against the shared in-memory fake `db` (`testDbHelpers.ts`) —
+ * there is no live-Postgres harness. `mock.module` swaps `@/db` before the service module is first
+ * imported (ESM import caching), so the mock must be installed up front and the service imported
+ * dynamically afterwards. This is the reference recipe for a DB-touching service test.
+ */
 
 type Row = Record<string, unknown>;
 

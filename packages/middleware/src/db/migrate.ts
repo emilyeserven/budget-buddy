@@ -41,6 +41,12 @@ interface RuntimeMigration {
 
 // Ordered list of idempotent, destructive/push-incompatible steps.
 const migrations: RuntimeMigration[] = [
+  // The starter's example Items entity was removed. Drop its table here, because push won't
+  // drop a table without an interactive prompt.
+  {
+    name: "drop starter items table",
+    run: db => db.execute(sql`DROP TABLE IF EXISTS "items"`),
+  },
   // CSV-ingest tables. Pre-created so push never hits its "new table on a populated database"
   // prompt. FK columns are plain uuid here; push adds the constraints and indexes afterwards.
   {
@@ -66,11 +72,16 @@ const migrations: RuntimeMigration[] = [
       "institution_id" uuid,
       "account_id" uuid,
       "column_map" jsonb NOT NULL,
-      "headers" jsonb NOT NULL,
+      "headers" jsonb,
       "date_format" text NOT NULL,
       "created_at" timestamp with time zone DEFAULT now() NOT NULL,
       "updated_at" timestamp with time zone DEFAULT now() NOT NULL
     )`),
+  },
+  {
+    // Headerless exports store null headers. Dropping NOT NULL is a no-op once applied.
+    name: "allow null csv_formats.headers",
+    run: db => db.execute(sql`ALTER TABLE "csv_formats" ALTER COLUMN "headers" DROP NOT NULL`),
   },
   {
     name: "pre-create accounts table",

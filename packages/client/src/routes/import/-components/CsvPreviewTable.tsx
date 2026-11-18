@@ -60,7 +60,7 @@ export function CsvPreviewTable({
       <Table>
         <TableHeader>
           <TableRow>
-            {csv.headers.map((header, index) => (
+            {csv.labels.map((header, index) => (
               <TableHead
                 key={`map-${index}`}
                 className="h-auto py-2 align-top"
@@ -74,7 +74,7 @@ export function CsvPreviewTable({
             ))}
           </TableRow>
           <TableRow>
-            {csv.headers.map((header, index) => (
+            {csv.labels.map((header, index) => (
               <TableHead key={`header-${index}`}>{header}</TableHead>
             ))}
           </TableRow>
