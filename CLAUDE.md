@@ -101,11 +101,15 @@ has the full checklist):
 - **`.js` import extensions in `@app/types`:** intra-package imports/re-exports must carry explicit
   `.js` extensions (`export * from "./items.js"`). Omitting them builds locally but breaks ESM
   resolution for consumers.
-- **Cross-package string unions are `as const` tuples.** Any union that crosses a package boundary
-  (a client zod enum, a middleware JSON-Schema `enum`, a settings value) is declared once in
-  `@app/types` as `export const X = [...] as const; export type X = typeof X[number];`, and every
-  wire schema spreads it (`z.enum(X)` / `enum: [...X]`). Per-variant maps are typed
-  `Record<Union, …>` so a new variant fails `tsc` until handled. Never hand-copy the literal list.
+- **Cross-package string unions are keyed const objects.** Any union that crosses a package
+  boundary (a client zod enum, a middleware JSON-Schema `enum`, a Drizzle `text` enum column) is
+  declared once in `@app/types` as
+  `export const X = { Foo: "foo", Bar: "bar" } as const; export type X = typeof X[keyof typeof X];`
+  and referenced by member (`X.Foo`). Wire schemas take its values via `enumValues(X)`
+  (`@app/types/enums.ts` — JSON-Schema `enum`, Drizzle `text(..., { enum })`) or `z.enum(X)`.
+  Per-variant maps are typed `Record<X, …>` so a new variant fails `tsc` until handled. Never
+  hand-copy the literal list. Value imports from `@app/types` resolve to its `dist`, so build types
+  first (`pnpm dev`/`typecheck`/CI already do).
 - **Shared payload types must be consumed.** A request/response type in `@app/types` must be imported
   by the route that implements it (type the parsed body with it beside the JSON schema) and by the
   client API module. New types go in a domain module (`items.ts`, …); `index.ts` only re-exports.

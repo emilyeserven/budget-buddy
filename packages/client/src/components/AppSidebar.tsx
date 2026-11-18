@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 import { Link } from "@tanstack/react-router";
-import { Home, List } from "lucide-react";
+import { Building2, FileUp, Home, List, Receipt, Users } from "lucide-react";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -27,6 +27,26 @@ const NAV_ITEMS: NavItem[] = [
     to: "/",
     label: "Home",
     icon: Home,
+  },
+  {
+    to: "/import",
+    label: "Import CSV",
+    icon: FileUp,
+  },
+  {
+    to: "/transactions",
+    label: "Transactions",
+    icon: Receipt,
+  },
+  {
+    to: "/accounts",
+    label: "Accounts",
+    icon: Building2,
+  },
+  {
+    to: "/entities",
+    label: "Entities",
+    icon: Users,
   },
   {
     to: "/items",

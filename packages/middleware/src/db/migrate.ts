@@ -23,6 +23,7 @@
  */
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
@@ -38,8 +39,74 @@ interface RuntimeMigration {
   run: (db: NodePgDatabase) => Promise<unknown>;
 }
 
-// Ordered list of idempotent, destructive/push-incompatible steps. Empty on a fresh project.
-const migrations: RuntimeMigration[] = [];
+// Ordered list of idempotent, destructive/push-incompatible steps.
+const migrations: RuntimeMigration[] = [
+  // CSV-ingest tables. Pre-created so push never hits its "new table on a populated database"
+  // prompt. FK columns are plain uuid here; push adds the constraints and indexes afterwards.
+  {
+    name: "pre-create entities table",
+    run: db => db.execute(sql`CREATE TABLE IF NOT EXISTS "entities" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "name" text NOT NULL,
+      "type" text NOT NULL,
+      "default_splitter_id" uuid,
+      "default_split" text,
+      "special_split_type" text,
+      "special_split_value" numeric(12, 2),
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+      CONSTRAINT "entities_name_unique" UNIQUE("name")
+    )`),
+  },
+  {
+    name: "pre-create csv_formats table",
+    run: db => db.execute(sql`CREATE TABLE IF NOT EXISTS "csv_formats" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "name" text NOT NULL,
+      "institution_id" uuid,
+      "account_id" uuid,
+      "column_map" jsonb NOT NULL,
+      "headers" jsonb NOT NULL,
+      "date_format" text NOT NULL,
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+    )`),
+  },
+  {
+    name: "pre-create accounts table",
+    run: db => db.execute(sql`CREATE TABLE IF NOT EXISTS "accounts" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "name" text NOT NULL,
+      "type" text NOT NULL,
+      "institution_id" uuid NOT NULL,
+      "owner_id" uuid NOT NULL,
+      "invert_amounts" boolean DEFAULT false NOT NULL,
+      "csv_format_id" uuid,
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+    )`),
+  },
+  {
+    name: "pre-create transactions table",
+    run: db => db.execute(sql`CREATE TABLE IF NOT EXISTS "transactions" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "name" text NOT NULL,
+      "date" date NOT NULL,
+      "time" time,
+      "total" numeric(12, 2) NOT NULL,
+      "account_id" uuid NOT NULL,
+      "description" text,
+      "splitter_id" uuid,
+      "split_type" text,
+      "split_value" numeric(12, 2),
+      "payee_id" uuid NOT NULL,
+      "extra" jsonb,
+      "raw_csv" text,
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+    )`),
+  },
+];
 
 async function main(): Promise<void> {
   if (migrations.length === 0) {
