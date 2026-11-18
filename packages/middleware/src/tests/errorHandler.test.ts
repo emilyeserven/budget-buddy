@@ -9,7 +9,7 @@ function buildTestApp() {
   const app = Fastify();
   app.setErrorHandler(errorHandler);
   app.get("/notfound", async () => {
-    throw new NotFoundError("Item");
+    throw new NotFoundError("Entity");
   });
   // A service `Duplicate*Error` is an `AppError` carrying the `duplicateName` code + params.
   app.get("/duplicate", async () => {
@@ -55,11 +55,11 @@ test("serializes an AppError to the { message, code, statusCode, params } envelo
   });
   assert.equal(res.statusCode, 404);
   assert.deepEqual(res.json(), {
-    message: "Item not found",
+    message: "Entity not found",
     code: "notFound",
     statusCode: 404,
     params: {
-      entity: "Item",
+      entity: "Entity",
     },
   });
 });

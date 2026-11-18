@@ -53,7 +53,7 @@ export function errorBody(err: AppError) {
 
 // ── Semantic subclasses used directly by routes/services ────────────────────────────────────────
 
-/** 404 — a looked-up entity doesn't exist. `entity` is an English label (e.g. "Item"). */
+/** 404 — a looked-up entity doesn't exist. `entity` is an English label (e.g. "Entity"). */
 export class NotFoundError extends AppError {
   constructor(entity: string, message = `${entity} not found`) {
     super(message, "notFound", 404, {
@@ -62,7 +62,7 @@ export class NotFoundError extends AppError {
   }
 }
 
-/** 409 — a name/slug-unique entity already has a row with this name. */
+/** 409 — a name-unique entity already has a row with this name. */
 export class DuplicateNameError extends AppError {
   constructor(entity: string, name: string) {
     super(`A ${entity} named "${name}" already exists`, "duplicateName", 409, {
@@ -76,6 +76,13 @@ export class DuplicateNameError extends AppError {
 export class ValidationError extends AppError {
   constructor(message: string, params?: ErrorParams) {
     super(message, "validation", 400, params);
+  }
+}
+
+/** 409 — the request conflicts with existing data (e.g. deleting a row others still reference). */
+export class ConflictError extends AppError {
+  constructor(message: string, params?: ErrorParams) {
+    super(message, "conflict", 409, params);
   }
 }
 

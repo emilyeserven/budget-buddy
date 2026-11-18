@@ -8,7 +8,7 @@ description: >-
   was saved", "record toasts / show a notifications history", or "use the standard toast helper".
   Covers `notifySuccess`/`notifyError` (`lib/notifications.ts`), `notifyFieldSaved`/
   `notifyFieldSaveError` (`lib/autoSave.ts`), `describeError`, the wording standards, and testing
-  through `test-utils/toastSpies.ts`. Reference: `ItemsManager`'s on-blur description save.
+  through `test-utils/toastSpies.ts`. Reference: `EntitiesManager`'s per-field auto-save cells.
 ---
 
 # Standardized toast / notification wiring
@@ -37,7 +37,7 @@ Facts worth knowing:
 
 ## Wording standards
 
-- **Name the thing.** `Created "<name>"`, `Deleted item`, `Updated Description` — never a bare
+- **Name the thing.** `Created "<name>"`, `Deleted entity`, `Updated Name` — never a bare
   "Saved". The log entry must make sense on its own, hours later.
 - **Errors carry the real reason.** Pass the caught error through `describeError(err)`
   (`lib/apiError.ts`), which returns the server's `message` (the middleware writes it for humans) or a
@@ -50,63 +50,74 @@ Facts worth knowing:
 ## Wire a mutation's toasts
 
 **Prefer toasting inside the mutation hook**, so a bare `.mutate()` can never be silent. Reference:
-`packages/client/src/hooks/useItems.ts`:
+`packages/client/src/hooks/useEntities.ts`:
 
 ```ts
-export function useCreateItem() {
-  const invalidate = useItemsInvalidation();
+export function useCreateEntity() {
+  const invalidate = useEntitiesInvalidation();
   return useMutation({
-    mutationFn: (input: CreateItemInput) => itemsApi.create(input),
-    onSuccess: (item) => {
+    mutationFn: (input: CreateEntityInput) => entitiesApi.create(input),
+    onSuccess: (entity) => {
       void invalidate();
-      notifySuccess(`Created "${item.name}"`);
+      notifySuccess(`Created "${entity.name}"`);
     },
     onError: err => notifyError(describeError(err)),
   });
 }
 ```
 
-The exception is a **generic update** hook (`useUpdateItem`) that several fields share: it stays
+The exception is a **generic update** hook (`useUpdateEntity`) that several fields share: it stays
 toast-free and each call site passes field-named callbacks (next section), because only the call
 site knows which field changed. See the `client-data-hooks` skill for the hook conventions.
 
 ## Per-field auto-save (the edit-surface convention)
 
 Edit surfaces have **no Save button**. Each field persists on its own trigger and fires a toast that
-**names the field**. Reference: `ItemRow` in `packages/client/src/routes/items/-components/ItemsManager.tsx`:
+**names the field**. Reference: the table cells in
+`packages/client/src/routes/entities/-components/EntitiesManager.tsx`:
 
 ```tsx
-const saveDescription = (value: string) => {
-  const description = value.trim() || null;
-  if (description === item.description) return; // no-op skip
-  update.mutate({ id: item.id, input: { description } }, {
-    onSuccess: () => notifyFieldSaved("Description"),
-    onError: err => notifyFieldSaveError("Description", describeError(err)),
+/** Auto-save one field of an entity, toasting with the field's label. */
+function useSaveEntityField(entity: Entity) {
+  const update = useUpdateEntity();
+  return (label: string, input: UpdateEntityInput) => update.mutate({ id: entity.id, input }, {
+    onSuccess: () => notifyFieldSaved(label),
+    onError: err => notifyFieldSaveError(label, describeError(err)),
   });
-};
+}
 
-<Textarea defaultValue={item.description ?? ""} onBlur={e => saveDescription(e.target.value)} />
+// NameCell — text saves on blur, skipping empty and unchanged values:
+<Input
+  defaultValue={entity.name}
+  onBlur={(e) => {
+    const name = e.target.value.trim();
+    if (name && name !== entity.name) save("Name", { name });
+  }}
+/>
+
+// TypeCell — a select saves on change:
+<EnumSelect labels={ENTITY_TYPE_LABELS} value={entity.type}
+  onChange={(type) => { if (type !== entity.type) save("Type", { type }); }} />
 ```
 
 Rules (decide once, apply everywhere):
 
 - **Trigger:** text/textarea save **on blur**; toggles, selects, checkboxes, comboboxes save **on
   change**.
-- **Single-field PATCH:** send only the changed key (`input: { description }`).
+- **Single-field PATCH:** send only the changed key (`input: { name }`).
 - **Skip no-ops:** compare against the last saved value (deep-equal for arrays/objects) and don't
   fire a request — or a toast — when nothing changed.
-- **Skip invalid values:** keep TanStack Form + the zod schema for field state/errors, but drop the
-  `<form onSubmit>` wrapper and submit button; only call save when the field has no errors.
-- **On failure/invalid, keep the user's input** — never revert. The field-named error toast plus the
-  inline field error are the feedback; the next blur/change retries.
+- **Skip invalid values:** check the value inline before calling save (`NameCell` ignores an empty
+  name) — there is no form library; the server's schema and service rules are the real validation.
+- **On failure/invalid, keep the user's input** — never revert. The field-named error toast is the
+  feedback; the next blur/change retries.
 - **Multi-key sections** that must change together: one `mutate` carrying both keys and **one**
   `notifyFieldSaved("<Section>")` toast.
-- **A name/slug field** that changes the URL: navigate to the new slug in the save's `onSuccess`
-  (the on-blur trigger keeps that from firing mid-typing).
-- When several fields repeat this shape, collapse it into one parametrized `saveField(key, value,
-  label)` helper or hook rather than N copies (see the `decompose-over-cap` skill).
+- When several fields repeat this shape, collapse it into one parametrized helper or hook
+  (`useSaveEntityField(entity)` → `save(label, input)`) rather than N copies (see the
+  `decompose-over-cap` skill).
 
-**Exceptions that keep an explicit submit:** create flows (the `CreateItemForm` in `ItemsManager`,
+**Exceptions that keep an explicit submit:** create flows (the `CreateEntityForm` in `EntitiesManager`,
 create pages, inline-create dialogs) and any multi-part change that can't be expressed as one field.
 **Device-local view prefs** in `stores/uiStore.ts` (theme, collapsed panels, sizes) apply instantly
 with **no toast** — nothing persisted server-side. A setting that must sync across devices belongs
@@ -123,7 +134,7 @@ non-syncing.
 
   vi.mock("../lib/notifications", async () => await import("../test-utils/toastSpies"));
   // …
-  expect(notifySuccess).toHaveBeenCalledWith("Updated Description");
+  expect(notifySuccess).toHaveBeenCalledWith("Updated Name");
   ```
   This keeps `lib/autoSave`'s real wording under test. Never `vi.mock` `lib/autoSave` or `sonner`
   directly (only tests *of* the toast layer itself mock sonner — see `lib/notifications.test.ts`).

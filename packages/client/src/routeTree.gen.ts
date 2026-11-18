@@ -10,43 +10,79 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ItemsIndexRouteImport } from './routes/items/index'
+import { Route as TransactionsIndexRouteImport } from './routes/transactions/index'
+import { Route as ImportIndexRouteImport } from './routes/import/index'
+import { Route as EntitiesIndexRouteImport } from './routes/entities/index'
+import { Route as AccountsIndexRouteImport } from './routes/accounts/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ItemsIndexRoute = ItemsIndexRouteImport.update({
-  id: '/items/',
-  path: '/items/',
+const TransactionsIndexRoute = TransactionsIndexRouteImport.update({
+  id: '/transactions/',
+  path: '/transactions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportIndexRoute = ImportIndexRouteImport.update({
+  id: '/import/',
+  path: '/import/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntitiesIndexRoute = EntitiesIndexRouteImport.update({
+  id: '/entities/',
+  path: '/entities/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountsIndexRoute = AccountsIndexRouteImport.update({
+  id: '/accounts/',
+  path: '/accounts/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/items/': typeof ItemsIndexRoute
+  '/accounts/': typeof AccountsIndexRoute
+  '/entities/': typeof EntitiesIndexRoute
+  '/import/': typeof ImportIndexRoute
+  '/transactions/': typeof TransactionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/items': typeof ItemsIndexRoute
+  '/accounts': typeof AccountsIndexRoute
+  '/entities': typeof EntitiesIndexRoute
+  '/import': typeof ImportIndexRoute
+  '/transactions': typeof TransactionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/items/': typeof ItemsIndexRoute
+  '/accounts/': typeof AccountsIndexRoute
+  '/entities/': typeof EntitiesIndexRoute
+  '/import/': typeof ImportIndexRoute
+  '/transactions/': typeof TransactionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/items/'
+  fullPaths: '/' | '/accounts/' | '/entities/' | '/import/' | '/transactions/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/items'
-  id: '__root__' | '/' | '/items/'
+  to: '/' | '/accounts' | '/entities' | '/import' | '/transactions'
+  id:
+    | '__root__'
+    | '/'
+    | '/accounts/'
+    | '/entities/'
+    | '/import/'
+    | '/transactions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ItemsIndexRoute: typeof ItemsIndexRoute
+  AccountsIndexRoute: typeof AccountsIndexRoute
+  EntitiesIndexRoute: typeof EntitiesIndexRoute
+  ImportIndexRoute: typeof ImportIndexRoute
+  TransactionsIndexRoute: typeof TransactionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,11 +94,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/items/': {
-      id: '/items/'
-      path: '/items'
-      fullPath: '/items/'
-      preLoaderRoute: typeof ItemsIndexRouteImport
+    '/transactions/': {
+      id: '/transactions/'
+      path: '/transactions'
+      fullPath: '/transactions/'
+      preLoaderRoute: typeof TransactionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/import/': {
+      id: '/import/'
+      path: '/import'
+      fullPath: '/import/'
+      preLoaderRoute: typeof ImportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entities/': {
+      id: '/entities/'
+      path: '/entities'
+      fullPath: '/entities/'
+      preLoaderRoute: typeof EntitiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accounts/': {
+      id: '/accounts/'
+      path: '/accounts'
+      fullPath: '/accounts/'
+      preLoaderRoute: typeof AccountsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -70,7 +127,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ItemsIndexRoute: ItemsIndexRoute,
+  AccountsIndexRoute: AccountsIndexRoute,
+  EntitiesIndexRoute: EntitiesIndexRoute,
+  ImportIndexRoute: ImportIndexRoute,
+  TransactionsIndexRoute: TransactionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

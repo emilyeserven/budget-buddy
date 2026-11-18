@@ -54,7 +54,7 @@ correctness. Exhaustive `Record<Union, …>` / `satisfies` patterns exist **prec
 `tsc`**, not a runtime test — a type-assertion test on top is redundant.
 
 **Factory defaults.** The `make*()` builders in `packages/client/src/test-utils/factories.ts`
-(`makeItem`, …) get **no self-tests**. They are fixtures, not product code; the shared types plus
+(`makeEntity`, …) get **no self-tests**. They are fixtures, not product code; the shared types plus
 `pnpm typecheck` keep their shape honest. A test that asserts a factory returns its own defaults is a
 change-detector with zero signal.
 
@@ -62,8 +62,8 @@ change-detector with zero signal.
 static copy render as literal strings (a list of provider names, a nav label table, a heading). A
 copy edit or a new registry entry shouldn't redden a test. Render tests assert **behavior** — state
 changes, callbacks/requests firing, conditional branches taken — **never the mere presence of a
-static string**. (Asserting that *data you fed in* renders, like `ItemsManager.test.tsx` finding the
-stubbed item's name, is behavior: it proves the fetch → render path.)
+static string**. (Asserting that *data you fed in* renders, like `EntitiesManager.test.tsx` finding the
+stubbed entity's name field, is behavior: it proves the fetch → render path.)
 
 **Third-party library behavior.** Don't test that Radix opens a popover on click, that TanStack
 Router navigates, that TanStack Query caches, or that Tailwind applies a class. That's the library's

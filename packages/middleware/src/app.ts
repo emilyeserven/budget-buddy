@@ -5,9 +5,12 @@ import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import Fastify from "fastify";
+import { accountRoutes } from "@/routes/accounts";
+import { csvFormatRoutes } from "@/routes/csvFormats";
+import { entityRoutes } from "@/routes/entities";
 import { fileRoutes } from "@/routes/files";
 import { healthRoutes } from "@/routes/health";
-import { itemRoutes } from "@/routes/items";
+import { transactionRoutes } from "@/routes/transactions";
 import { errorHandler } from "@/utils/errorHandler";
 
 /**
@@ -74,8 +77,20 @@ export async function buildApp(): Promise<FastifyInstance> {
             description: "Service health",
           },
           {
-            name: "items",
-            description: "Example CRUD entity",
+            name: "entities",
+            description: "Merchants, institutions, friends and household members",
+          },
+          {
+            name: "accounts",
+            description: "Cards and bank accounts",
+          },
+          {
+            name: "csv-formats",
+            description: "Saved CSV column mappings",
+          },
+          {
+            name: "transactions",
+            description: "Transactions and CSV import",
           },
           {
             name: "files",
@@ -106,8 +121,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(healthRoutes);
-  await app.register(itemRoutes);
   await app.register(fileRoutes);
+  await app.register(entityRoutes);
+  await app.register(accountRoutes);
+  await app.register(csvFormatRoutes);
+  await app.register(transactionRoutes);
 
   return app;
 }
