@@ -85,7 +85,7 @@ html.sidebar-resizing [data-slot="sidebar-container"] {
 }
 
 :root {
-  --radius: 0;
+  --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.148 0.004 228.8);
   --card: oklch(1 0 0);
