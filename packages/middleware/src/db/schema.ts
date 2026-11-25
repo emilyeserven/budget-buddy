@@ -42,15 +42,6 @@ const timestamps = {
   }).notNull().defaultNow(),
 };
 
-/** Example entity — rename or replace it when you start a real project. */
-export const items = pgTable("items", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  description: text("description"),
-  ...timestamps,
-});
-
 /** Merchants, institutions, friends, household members — anyone a transaction involves. */
 export const entities = pgTable("entities", {
   id: uuid("id").primaryKey().defaultRandom(),

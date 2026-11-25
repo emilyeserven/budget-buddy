@@ -87,17 +87,19 @@ that's expected noise.
 ## 3. Seed purposeful data via the API
 
 Create what the change needs through the same API the UI uses (`http://localhost:3001/api`), e.g.
-for the example entity:
+for entities:
 
 ```bash
-curl -s -X POST localhost:3001/api/items -H 'content-type: application/json' \
-  -d '{"name":"Alpha","description":"First item"}'
-curl -s localhost:3001/api/items
+curl -s -X POST localhost:3001/api/entities -H 'content-type: application/json' \
+  -d '{"name":"Acme Bank","type":"commercial"}'
+curl -s localhost:3001/api/entities
 ```
 
-The items routes are `GET/POST /api/items`, `GET/PATCH/DELETE /api/items/:id`
-(`packages/middleware/src/routes/items.ts`); bodies are typed by `CreateItemInput` /
-`UpdateItemInput` in `@app/types`. With docs enabled (the default outside production), the full
+The entities routes are `GET/POST /api/entities`, `GET/PATCH/DELETE /api/entities/:id`
+(`packages/middleware/src/routes/entities.ts`); bodies are typed by `CreateEntityInput` /
+`UpdateEntityInput` in `@app/types` (`type` is one of the `EntityType` values). An account needs an
+institution and an owner entity first (`POST /api/accounts`), and transactions arrive via
+`POST /api/transactions/import`. With docs enabled (the default outside production), the full
 surface is browsable at `http://localhost:3001/docs`.
 
 ## 4. Drive it with Playwright
@@ -110,15 +112,15 @@ remote sandbox: `/opt/pw-browsers/chromium`):
 import { chromium } from "playwright-core";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, colorScheme: "dark" });
-await page.goto("http://localhost:5173/items", { waitUntil: "networkidle" });
-await page.screenshot({ path: "<scratchpad>/items-dark.png", fullPage: true });
+await page.goto("http://localhost:5173/entities", { waitUntil: "networkidle" });
+await page.screenshot({ path: "<scratchpad>/entities-dark.png", fullPage: true });
 ```
 
 Gotchas:
 - `text=Foo` is substring-matching; descriptions and labels often contain the same word, so prefer
   `getByText("Foo", { exact: true })`, `getByRole`, or `getByLabel`.
 - Auto-save fields persist **on blur** — after `fill`, blur the field (`press("Tab")`) and wait for
-  the PATCH (`page.waitForResponse(r => r.url().includes("/api/items/") && r.request().method() === "PATCH")`)
+  the PATCH (`page.waitForResponse(r => r.url().includes("/api/entities/") && r.request().method() === "PATCH")`)
   before asserting or screenshotting.
 - Check both themes: pass `colorScheme: "light" | "dark"` at `newPage` time.
 - Check phone width too (`viewport: { width: 390, height: 844 }`) for any layout change.

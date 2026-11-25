@@ -7,8 +7,8 @@ description: >-
   drops any field not declared in its schema. Use when asked to "add a route/endpoint", "add a REST
   API for X", "why does my new field never reach the service / always come back null", "add a bulk
   action route", "add a multipart upload route", "add a query-string route", or when the `add-entity`
-  skill's routes step needs unpacking. Mirrors `routes/items.ts` (base CRUD) and `routes/files.ts`
-  (multipart upload, streaming a binary response). Cross-links the `api-errors` skill for the
+  skill's routes step needs unpacking. Mirrors `routes/entities.ts` (base CRUD), `routes/transactions.ts`
+  (large nested import body) and `routes/files.ts` (multipart upload, streaming a binary response). Cross-links the `api-errors` skill for the
   throw-vs-`reply.code` decision — this skill does not re-document that contract. Also covers
   maintaining an endpoint — "add a field to an existing route body", "a PATCH silently drops my new
   column".
@@ -17,12 +17,13 @@ description: >-
 # Add a Fastify route/endpoint
 
 Every route module (`packages/middleware/src/routes/<entity>.ts`) follows the same shape. Build a new
-one by copying a complete file rather than from scratch — **`routes/items.ts`** is the base CRUD
-reference; **`routes/files.ts`** shows multipart upload and streaming a binary response.
+one by copying a complete file rather than from scratch — **`routes/entities.ts`** is the base CRUD
+reference; **`routes/transactions.ts`** shows a large nested import body; **`routes/files.ts`** shows
+multipart upload and streaming a binary response.
 
 ## The base CRUD recipe
 
-Reference: `routes/items.ts`.
+Reference: `routes/entities.ts`.
 
 1. **Module-level `as const` JSON-schema consts**, declared above the route function:
    - `<entity>Schema` — the response shape (used in `response: { 200: … }`). A response schema also
@@ -31,10 +32,10 @@ Reference: `routes/items.ts`.
    - `idParams` — `{ type: "object", required: ["id"], properties: { id: { type: "string", format:
      "uuid" } } }`. Reused by GET-by-id / PATCH / DELETE. A malformed id becomes a 400
      `schemaValidation` instead of a database error.
-   - One shared `<entity>BodyProperties` object, spread into both bodies:
+   - One shared `<entity>BodyProperties` object, used by both bodies:
      - `createBody` — `type: "object"`, `required: [...]`, **`additionalProperties: false`**,
        `properties: <entity>BodyProperties`.
-     - `updateBody` — same, minus `required`. Add update-only fields by spreading:
+     - `updateBody` — same, minus `required`. If you need update-only fields, spread:
        `properties: { ...<entity>BodyProperties, /* update-only */ }`.
      The shared properties object is the **one edit point** when a field changes; two hand-copied
      lists are two places to forget.
@@ -42,8 +43,8 @@ Reference: `routes/items.ts`.
    `const tags = ["<entity-plural-kebab>"];` at module level and `tags` on every route's `schema` —
    that groups the routes in the Swagger UI at `/docs`.
 3. **Type the request with the shared `@app/types` input** via Fastify's generics, beside the schema:
-   `app.post<{ Body: CreateItemInput }>(…)`, `app.patch<{ Params: { id: string }; Body:
-   UpdateItemInput }>(…)`. AJV has already validated the shape, so this is for downstream
+   `app.post<{ Body: CreateEntityInput }>(…)`, `app.patch<{ Params: { id: string }; Body:
+   UpdateEntityInput }>(…)`. AJV has already validated the shape, so this is for downstream
    type-safety. A request/response type declared in `@app/types` **must** be consumed by the route
    that implements it — don't declare aspirational payload types.
 4. **Status codes:**
@@ -51,17 +52,26 @@ Reference: `routes/items.ts`.
    - Create → `reply.code(201).send(await createX(req.body))`.
    - Delete → `await deleteX(id); return reply.code(204).send();`
    - Failures are **thrown by the service** (`NotFoundError`, `DuplicateNameError`, …), not built by
-     the route — `services/items.ts` throws `NotFoundError("Item")` from `getItem`/`deleteItem`. See
+     the route — `services/entities.ts` throws `NotFoundError("Entity")` from `getEntity` (which
+     `updateEntity`/`deleteEntity` call first). See
      the **`api-errors`** skill for which subclass/status and the one sanctioned `reply.code()`
      exception.
 5. **Register the module in `packages/middleware/src/app.ts`** — easy to miss because nothing fails
    loudly: add `import { widgetRoutes } from "@/routes/widgets";` and `await app.register(widgetRoutes);`
-   next to `itemRoutes`. A route file that isn't registered just 404s. While there, add a
+   next to `entityRoutes`. A route file that isn't registered just 404s. While there, add a
    `{ name, description }` entry to the swagger `openapi.tags` array so the tag has a description.
 6. All API paths start with `/api/` — the gateway proxies only `/api/*` to the middleware.
 
 ## Variations
 
+- **Enum fields:** spread the shared keyed-const enum with `enumValues(X)` from `@app/types` —
+  `type: { type: "string", enum: enumValues(EntityType) }`; for a nullable enum,
+  `{ type: ["string", "null"], enum: [...enumValues(X), null] }` (the `nullableEnum` helper in
+  `routes/entities.ts`). Never hand-copy the literal list.
+- **Large / nested import bodies** (`POST /api/transactions/import` in `routes/transactions.ts`): raise
+  the per-route `bodyLimit` (Fastify's default is 1 MB) and compose nested schemas from other modules'
+  exported consts (`importBody.newFormat` spreads `createCsvFormatBody` from `routes/csvFormats.ts`).
+  Every nested object with `additionalProperties: false` is subject to the trap below.
 - **Query-string routes:** `schema: { querystring: <schema> }` (same shape as a body schema), typed
   via `app.get<{ Querystring: {...} }>`. The `removeAdditional` trap below applies here too.
 - **Multipart file upload** (`POST /api/files` in `routes/files.ts`): `schema: { consumes:

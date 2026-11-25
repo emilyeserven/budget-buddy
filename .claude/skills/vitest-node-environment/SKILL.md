@@ -24,7 +24,7 @@ projects** at config load, by scanning each file's source:
 - **`mocked`** — any file calling `vi.mock` / `doMock` / `unmock` / `hoisted` / `stubGlobal` /
   `stubEnv` / `setSystemTime`. jsdom by default (a per-file pragma still wins), full per-file
   isolation — these APIs mutate worker-global state that Vitest only resets under isolation.
-  e.g. `routes/items/-components/ItemsManager.test.tsx` (`stubGlobal("fetch")`), and the node-pragma
+  e.g. `routes/entities/-components/EntitiesManager.test.tsx` (`stubGlobal("fetch")`), and the node-pragma
   `lib/autoSave.test.ts` / `lib/notifications.test.ts` / `lib/pwa.test.ts` (`vi.mock`).
 
 The config throws at load if the partition ever loses a file, and `sequence.groupOrder` runs the
@@ -71,7 +71,7 @@ Needs **jsdom** (do NOT add the pragma) when the test — or anything it imports
   libraries do) — the test crashes on import, not on the assertion
 
 Safe for **node** (add the pragma): pure functions over data — parsers, formatters, predicates, tree
-builders, zod schemas, reducers, error-code mappers. Nearly everything in
+builders, reducers, error-code mappers. Nearly everything in
 `packages/client/src/lib/*.test.ts` qualifies, and every existing one is already tagged.
 
 ## The shared setup stays guarded — and is the fresh-world reset

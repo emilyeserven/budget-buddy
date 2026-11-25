@@ -32,18 +32,21 @@ skill decides *whether* the test should exist at all.
 
 ## The decision
 
-- **Testing middleware service logic** (a `services/*.ts` function's branching, dedup, slug
-  generation, not-found / duplicate errors) → a **fake-db test** under `node:test`
-  (`packages/middleware/src/tests/testDbHelpers.ts`). Reference: `tests/items.test.ts`.
+- **Testing middleware service logic** (a `services/*.ts` function's branching, dedup, not-found /
+  duplicate / still-referenced errors) → a **fake-db test** under `node:test`
+  (`packages/middleware/src/tests/testDbHelpers.ts`). Reference: `tests/entities.test.ts`; a fuller
+  one (multi-table import, `db.transaction`) is `tests/transactions.test.ts`.
 - **Testing the HTTP/error contract** without a database (status codes, the error envelope, schema
   validation 400s) → build a tiny Fastify app in the test with just the pieces under test and use
   `app.inject`. Reference: `tests/errorHandler.test.ts` (wires only `errorHandler` + throwing routes).
-- **Testing pure middleware helpers** → a plain `node:test` file, no fake. Reference: `tests/slug.test.ts`.
+- **Testing pure middleware helpers** → a plain `node:test` file under `src/tests/`, no fake (there
+  is no such file today; extract the helper rather than reaching it through a service).
 - **Testing client component behavior** (what renders, what a blur/change fires, which toast is
   recorded) → **`renderWithRouter`** under jsdom, with `fetch` stubbed or the hook module mocked.
-  Fixtures come from the `make*` factories. Reference: `routes/items/-components/ItemsManager.test.tsx`.
+  Fixtures come from the `make*` factories. Reference: `routes/entities/-components/EntitiesManager.test.tsx`.
 - **Testing a pure client helper** (parser/formatter/predicate/reducer) → a `.test.ts` with the
-  line-1 `// @vitest-environment node` pragma. Reference: `lib/apiError.test.ts`.
+  line-1 `// @vitest-environment node` pragma. Reference: `lib/apiError.test.ts`,
+  `routes/import/-utils/parseCsv.test.ts`.
 - **Feeding a story realistic data** → **MSW `apiHandlers`** from `test-utils/story-mocks.ts`, wired
   through Storybook. Never in a test.
 
@@ -67,7 +70,8 @@ row filters, resolving each `Column` to the **TS property key** (rows use `creat
 
 **Supports:** `select(cols?).from(table)`, `.where(...)` for `eq` / `and(...)` / `isNull` /
 `inArray`, `.orderBy(asc|desc)`, `.limit(n)`, `insert(table).values(...)` with `.returning()` /
-`.onConflictDoNothing()` (dedups on `slug`, and is chainable to `.returning()`),
+`.onConflictDoNothing()` (dedups only on a `slug` key — a leftover from the starter, so it is a
+no-op for tables without one; chainable to `.returning()`),
 `update(table).set(...).where(...)` (+ `.returning()`), `delete(table).where(...)` (+ `.returning()`),
 `transaction(cb)` (the `tx` is the same fake — no real rollback), and a placeholder `$count(...)`.
 Auto-generates `id` (`fake-id-N`) when a row doesn't supply one; reset with `resetFakeIds()`.
@@ -81,30 +85,42 @@ Auto-generates `id` (`fake-id-N`) when a row doesn't supply one; reset with `res
 ES module imports are cached process-wide, so **`mock.module("@/db", …)` must run before the service
 module is first imported**. Every fake-db test file follows this order: static imports of `node:test`,
 schema tables, and the harness → build the fake → install the mock → **then** `await import` the
-service. From `tests/items.test.ts`:
+service. From `tests/entities.test.ts` (condensed):
 
 ```ts
 import { mock, test } from "node:test";
-import { items } from "@/db/schema";
+import { EntityType } from "@app/types";
+import { accounts, csvFormats, entities, transactions } from "@/db/schema";
 import { createFakeDb, resetFakeIds } from "@/tests/testDbHelpers";
 
-// Mutable, never-reassigned fixture array — the fake `db` closes over it by reference.
-const itemRows: Record<string, unknown>[] = [];
+// Mutable, never-reassigned fixture arrays — the fake `db` closes over them by reference.
+const entityRows: Record<string, unknown>[] = [];
+const accountRows: Record<string, unknown>[] = [];
+const transactionRows: Record<string, unknown>[] = [];
 
-function resetRows(rows: Record<string, unknown>[] = []): void {
-  resetFakeIds();
-  itemRows.length = 0;      // mutate in place; reassigning would detach the fake
-  itemRows.push(...rows);
-}
-
-const db = createFakeDb([{ table: items, rows: itemRows }]);
+// Register every table the service touches (deleteEntity checks accounts/transactions and
+// clears csvFormats) — an unregistered table can't be queried.
+const db = createFakeDb([
+  { table: entities, rows: entityRows },
+  { table: accounts, rows: accountRows },
+  { table: csvFormats, rows: [] },
+  { table: transactions, rows: transactionRows },
+]);
 
 mock.module("@/db", { namedExports: { db } });   // BEFORE the dynamic import
 
-const { createItem, deleteItem, getItem, updateItem } = await import("@/services/items");
+const { createEntity, deleteEntity } = await import("@/services/entities");
+
+function reset(): void {
+  resetFakeIds();
+  // mutate in place; reassigning would detach the fake
+  for (const rows of [entityRows, accountRows, transactionRows]) rows.length = 0;
+  entityRows.push({ id: "bank", name: "Acme Bank", type: EntityType.Commercial,
+    createdAt: new Date(), updatedAt: new Date() });
+}
 ```
 
-Call `resetRows(...)` at the top of each `test(...)` so tests don't share state. The middleware
+Call `reset()` at the top of each `test(...)` so tests don't share state. The middleware
 `test` script passes `--experimental-test-module-mocks`, which `mock.module` requires.
 
 **Partial mock** for a transitively-imported module you only want to tweak: `namedExports` replaces a
@@ -134,8 +150,10 @@ return toRecord(row);
 ```
 
 Each of read / branch / write is a primitive the fake supports, so the real conflict-resolution logic
-runs in JS where the test can drive it. `services/items.ts`'s duplicate-name check (select, then throw
-a 409 `duplicateName` `AppError`, then insert) is the same idea.
+runs in JS where the test can drive it. `services/entities.ts`'s duplicate-name check (`assertNameFree`:
+select, then throw a 409 `duplicateName` `AppError`, then insert) and its referenced-delete check
+(one select per referencing column rather than an `or(...)`, which the fake can't parse) are the
+same idea.
 
 ### When the fake can't parse a query
 
@@ -170,16 +188,16 @@ the router's settle). Pass `paths` for every route a rendered `<Link>` targets.
 The query cache is **empty**, so any real data hook that runs will hit `fetch`. Cut it off one of two
 ways:
 
-**A. Stub `fetch` and let the real hooks run** (the reference — `routes/items/-components/ItemsManager.test.tsx`).
-This exercises the real `hooks/useItems.ts` + `lib/api/items.ts` path, and you assert on the request
-the component made:
+**A. Stub `fetch` and let the real hooks run** (the reference — `routes/entities/-components/EntitiesManager.test.tsx`).
+This exercises the real `hooks/useEntities.ts` + `lib/api/entities.ts` path, and you assert on the
+request the component made:
 
 ```ts
-function stubApi(items = [makeItem()]) {
+function stubApi(entities = [makeEntity({ name: "Acme Bank" })]) {
   const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
     const method = init?.method ?? "GET";
-    if (method === "GET") return Response.json(items);
-    if (method === "PATCH") return Response.json(items[0]);
+    if (method === "GET") return Response.json(entities);
+    if (method === "PATCH") return Response.json(entities[0]);
     return new Response(null, { status: 204 });
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -187,14 +205,14 @@ function stubApi(items = [makeItem()]) {
 }
 afterEach(() => { vi.unstubAllGlobals(); });
 
-it("auto-saves the description on blur", async () => {
+it("auto-saves a renamed entity on blur with a field-named toast", async () => {
   const fetchMock = stubApi();
-  await renderWithRouter(<ItemsManager />);
-  const textarea = await screen.findByLabelText("Description");
-  fireEvent.change(textarea, { target: { value: "New text" } });
-  fireEvent.blur(textarea);
+  await renderWithRouter(<EntitiesManager />);
+  const input = await screen.findByLabelText("Name of Acme Bank");
+  fireEvent.change(input, { target: { value: "Acme Savings Bank" } });
+  fireEvent.blur(input);
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
-    "/api/items/item-1", expect.objectContaining({ method: "PATCH" })));
+    "/api/entities/entity-1", expect.objectContaining({ method: "PATCH" })));
 });
 ```
 
@@ -203,11 +221,11 @@ it("auto-saves the description on blur", async () => {
 the list hook *and* each mutation — or the unmocked one runs for real against an unstubbed `fetch`:
 
 ```ts
-vi.mock("@/hooks/useItems", () => ({
-  useItems: () => ({ data: [makeItem()], isLoading: false }),
-  useCreateItem: () => ({ mutate: vi.fn(), isPending: false }),
-  useUpdateItem: () => ({ mutate: (vars, opts) => opts?.onSuccess?.(makeItem({ id: vars.id, ...vars.input })) }),
-  useDeleteItem: () => ({ mutate: vi.fn() }),
+vi.mock("@/hooks/useEntities", () => ({
+  useEntities: () => ({ data: [makeEntity()], isLoading: false }),
+  useCreateEntity: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateEntity: () => ({ mutate: (vars, opts) => opts?.onSuccess?.(makeEntity({ id: vars.id, ...vars.input })) }),
+  useDeleteEntity: () => ({ mutate: vi.fn() }),
 }));
 ```
 
@@ -218,7 +236,7 @@ Both `vi.stubGlobal` and `vi.mock` move the file into the isolated `mocked` Vite
 (e.g. a presentational component given props, like `components/ui/data-table.test.tsx`), it rides
 the faster non-isolated project. A plain `vi.fn()` callback prop does **not** count as a mock.
 
-**Fixtures come from `make*` factories** (`test-utils/factories.ts` — `makeItem`). Never re-list a
+**Fixtures come from `make*` factories** (`test-utils/factories.ts` — `makeEntity`, `makeAccount`, `makeCsvFormat`, `makeTransaction`). Never re-list a
 shared entity's fields inline: an inline literal silently drifts when the type gains/loses a field
 and only surfaces as a typecheck failure. When you add a shared entity type, add its factory in the
 same change. (A factory self-test is itself not worth writing — see **`what-not-to-test`**.)
@@ -226,8 +244,8 @@ same change. (A factory self-test is itself not worth writing — see **`what-no
 ### Asserting toasts: one seam
 
 - **Prefer mock-free:** assert on the real `notificationStore` — every toast is recorded there.
-  `ItemsManager.test.tsx` checks
-  `useNotificationStore.getState().notifications[0]?.message` equals `"Updated Description"`. The
+  `EntitiesManager.test.tsx` checks
+  `useNotificationStore.getState().notifications[0]?.message` equals `"Updated Name"`. The
   store is reset between files by `test-utils/resetStores.ts`.
 - **If you must spy**, mock only through the shared seam `test-utils/toastSpies.ts`, which stands in
   for `lib/notifications` (the middle layer):
@@ -255,21 +273,22 @@ the pointer-driven open. Open with a keyboard event, then click the revealed ite
 ## Stories: MSW handlers
 
 Stories mock at the **network** boundary. `test-utils/story-mocks.ts` exports `apiHandlers` (MSW
-handlers for the `/api/items` routes the data-driven stories read) plus `sampleItems` built from the
-same `make*` factories. MSW is wired globally in `packages/client/.storybook/preview.tsx`
+handlers for the `/api/entities`, `/api/accounts`, `/api/csv-formats` and `/api/transactions` routes
+the data-driven stories read) plus `sampleEntities` / `sampleAccounts` / `sampleCsvFormats` /
+`sampleTransactions` built from the same `make*` factories. MSW is wired globally in `packages/client/.storybook/preview.tsx`
 (`initialize({ onUnhandledRequest: "bypass" })` + `mswLoader`), alongside the `withQueryClient` /
 `withRouter` decorators — the Storybook analogues of the test harness, so the real data
 hooks run against MSW in a story.
 
 A story opts in via a parameter, and overrides per-story by putting its handler **first** and
-spreading the defaults after it (from `routes/items/-components/ItemsManager.stories.tsx`):
+spreading the defaults after it (from `routes/entities/-components/EntitiesManager.stories.tsx`):
 
 ```tsx
-import { apiHandlers } from "../test-utils/story-mocks";
-const meta = { component: ItemsManager, parameters: { msw: { handlers: apiHandlers } } };
+import { apiHandlers } from "@/test-utils/story-mocks";
+const meta = { component: EntitiesManager, parameters: { msw: { handlers: apiHandlers } } };
 // per-story override:
 export const Empty: Story = {
-  parameters: { msw: { handlers: [http.get("/api/items", () => HttpResponse.json([])), ...apiHandlers] } },
+  parameters: { msw: { handlers: [http.get("/api/entities", () => HttpResponse.json([])), ...apiHandlers] } },
 };
 ```
 

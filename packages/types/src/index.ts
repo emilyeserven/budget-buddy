@@ -6,5 +6,4 @@ export * from "./csvNormalize.js";
 export * from "./entities.js";
 export * from "./enums.js";
 export * from "./errors.js";
-export * from "./items.js";
 export * from "./transactions.js";

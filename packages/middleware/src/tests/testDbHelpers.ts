@@ -2,7 +2,7 @@ import { Column, is, Param, SQL } from "drizzle-orm";
 
 /**
  * Shared scaffolding for testing DB-touching service functions against a tiny in-memory fake `db`
- * (this suite has no live-Postgres harness — see `items.test.ts` for the reference recipe
+ * (this suite has no live-Postgres harness — see `entities.test.ts` for the reference recipe
  * this generalizes). `mock.module("@/db", { namedExports: { db: fakeDb } })` must be called before
  * the service module under test is dynamically imported (ES module imports are cached process-wide).
  *
