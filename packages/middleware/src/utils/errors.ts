@@ -79,6 +79,13 @@ export class ValidationError extends AppError {
   }
 }
 
+/** 409 — the request conflicts with existing data (e.g. deleting a row others still reference). */
+export class ConflictError extends AppError {
+  constructor(message: string, params?: ErrorParams) {
+    super(message, "conflict", 409, params);
+  }
+}
+
 /** 503 — object storage isn't configured, so file upload/serving is unavailable. */
 export class StorageUnconfiguredError extends AppError {
   constructor(message = "File storage is not configured") {
