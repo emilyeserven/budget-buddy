@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { APP_PAGES } from "@/lib/pages";
 
 interface NavItem {
   to: string;
@@ -21,13 +22,14 @@ interface NavItem {
   icon: LucideIcon;
 }
 
-/** Sidebar navigation entries — add a page here when you add a top-level route. */
+/** Sidebar navigation entries: Home plus the main pages (add a top-level page to `APP_PAGES`). */
 const NAV_ITEMS: NavItem[] = [
   {
     to: "/",
     label: "Home",
     icon: Home,
   },
+  ...APP_PAGES,
   {
     to: "/items",
     label: "Items",
@@ -38,7 +40,7 @@ const NAV_ITEMS: NavItem[] = [
 export function AppSidebar() {
   return (
     <Sidebar>
-      <SidebarHeader className="px-4 py-3 text-lg font-semibold">App</SidebarHeader>
+      <SidebarHeader className="px-4 py-3 text-lg font-semibold">Budget Buddy</SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
