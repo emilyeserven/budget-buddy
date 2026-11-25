@@ -1,16 +1,17 @@
-# app-core — Architecture & Conventions
+# Budget Buddy — Architecture & Conventions
 
 ## Project summary
 
-A self-hostable, full-stack TypeScript starter in a pnpm-workspace monorepo. It ships one example
-entity (**Items**) that demonstrates every layer end-to-end; real projects replace it. Deployment
+A self-hostable personal-finance app built on the app-core full-stack TypeScript starter (a
+pnpm-workspace monorepo). It ingests bank and credit-card CSV exports into transactions, with
+entities (merchants, institutions, people), accounts, and saved CSV formats. Deployment
 targets include low-power hosts such as a **Raspberry Pi 4/5 (64-bit)** — keep changes Pi-friendly
 (see **Raspberry Pi constraints** below).
 
 ## Tech stack
 
 - **Runtime & build:** Node 22, pnpm 10, TypeScript 5.9 (strict, ES2022, `moduleResolution: bundler`)
-- **Frontend:** React 19, Vite 8, TanStack Router (file-based) / Query / Form, Tailwind CSS 4,
+- **Frontend:** React 19, Vite 8, TanStack Router (file-based) / Query / Table, Tailwind CSS 4,
   shadcn/ui primitives, zustand, sonner, vite-plugin-pwa
 - **Backend:** Fastify 5, Drizzle ORM, PostgreSQL 16, Swagger UI, optional S3-compatible object
   storage (Garage)
@@ -49,29 +50,33 @@ pnpm lint:fix         # auto-fix ESLint issues (always run from the repo root)
 pnpm verify:changed   # lint/typecheck/test only changed packages
 pnpm fallow           # dead-code / duplication / complexity audit
 pnpm studio           # Drizzle Studio
+pnpm storybook        # Storybook dev server on :6006 (builds @app/types first)
 pnpm push:dev         # run migrate.ts then drizzle-kit push against the local database
 pnpm rename <name>    # one-time rename of scope/package/db names for a new project
 ```
 
 Package-scoped commands use `pnpm --filter=@app/<name>`.
 
-## The example feature (Items) — the reference for every new entity
+## The reference entity (Entities) — copy it for every new entity
 
-Each layer has exactly one Items file; copy them when adding an entity (the **`add-entity`** skill
+Each layer has one Entities file; copy them when adding an entity (the **`add-entity`** skill
 has the full checklist):
 
 | Layer | File |
 |---|---|
-| Shared types | `packages/types/src/items.ts` (re-exported from `index.ts` with a `.js` extension) |
-| Table | `packages/middleware/src/db/schema.ts` |
-| Service | `packages/middleware/src/services/items.ts` (throws `AppError` subclasses, slugs via `utils/slug.ts`) |
-| Route | `packages/middleware/src/routes/items.ts` (module-level JSON-schema consts), registered in `app.ts` |
-| Server test | `packages/middleware/src/tests/items.test.ts` (in-memory fake db) |
-| Client API | `packages/client/src/lib/api/items.ts` (`createCrudApi`) |
-| Query hooks | `packages/client/src/hooks/useItems.ts` (module-level query key, toasts on mutations) |
-| Page | `packages/client/src/routes/items/index.tsx` + `NAV_ITEMS` in `components/AppSidebar.tsx` |
-| UI | `packages/client/src/routes/items/-components/ItemsManager.tsx` + `.test.tsx` + `.stories.tsx` |
-| Test data | `makeItem` in `test-utils/factories.ts`, MSW handlers in `test-utils/story-mocks.ts` |
+| Shared types | `packages/types/src/entities.ts` (re-exported from `index.ts` with a `.js` extension) |
+| Table | `packages/middleware/src/db/schema.ts` (+ its `migrate.ts` pre-create) |
+| Service | `packages/middleware/src/services/entities.ts` (throws `AppError` subclasses) |
+| Route | `packages/middleware/src/routes/entities.ts` (module-level JSON-schema consts), registered in `app.ts` |
+| Server test | `packages/middleware/src/tests/entities.test.ts` (in-memory fake db) |
+| Client API | `packages/client/src/lib/api/entities.ts` (`createCrudApi`) |
+| Query hooks | `packages/client/src/hooks/useEntities.ts` (keys in `hooks/queryKeys.ts`, toasts on mutations) |
+| Page | `packages/client/src/routes/entities/index.tsx` + an `APP_PAGES` entry in `lib/pages.ts` (sidebar + Home tiles) |
+| UI | `packages/client/src/routes/entities/-components/EntitiesManager.tsx` + `.test.tsx` + `.stories.tsx` |
+| Test data | `makeEntity` in `test-utils/factories.ts`, MSW handlers in `test-utils/story-mocks.ts` |
+
+The CSV import flow (`routes/import/`, `services/transactions.ts`) is the reference for a
+multi-step page with a controller hook and for a bulk-write endpoint.
 
 ## Conventions
 
@@ -99,10 +104,10 @@ has the full checklist):
 - **Path alias:** both the middleware and the client use `@/*` → `src/*` (the middleware resolves it
   at build time via `tsc-alias`).
 - **`.js` import extensions in `@app/types`:** intra-package imports/re-exports must carry explicit
-  `.js` extensions (`export * from "./items.js"`). Omitting them builds locally but breaks ESM
+  `.js` extensions (`export * from "./entities.js"`). Omitting them builds locally but breaks ESM
   resolution for consumers.
 - **Cross-package string unions are keyed const objects.** Any union that crosses a package
-  boundary (a client zod enum / label map, a middleware JSON-Schema `enum`, a Drizzle `text` enum column) is
+  boundary (a client label map, a middleware JSON-Schema `enum`, a Drizzle `text` enum column) is
   declared once in `@app/types` as
   `export const X = { Foo: "foo", Bar: "bar" } as const; export type X = typeof X[keyof typeof X];`
   and referenced by member (`X.Foo`). Wire schemas take its values via `enumValues(X)`
@@ -112,7 +117,7 @@ has the full checklist):
   first (`pnpm dev`/`typecheck`/CI already do).
 - **Shared payload types must be consumed.** A request/response type in `@app/types` must be imported
   by the route that implements it (type the parsed body with it beside the JSON schema) and by the
-  client API module. New types go in a domain module (`items.ts`, …); `index.ts` only re-exports.
+  client API module. New types go in a domain module (`entities.ts`, …); `index.ts` only re-exports.
 - **Fastify `removeAdditional` trap.** Route bodies are `additionalProperties: false`, and Fastify's
   AJV config **silently strips** undeclared properties. A new body field that isn't added to the
   route's JSON schema never reaches the service. See the **`add-endpoint`** skill.
@@ -130,7 +135,7 @@ has the full checklist):
   (`lib/notifications.ts`), which also records the toast in the persisted `notificationStore`.
   Edit forms prefer **per-field auto-save** (text on blur, toggles/selects on change, no Save
   button, no-op when unchanged) reporting through `notifyFieldSaved`/`notifyFieldSaveError`
-  (`lib/autoSave.ts`) so the toast names the field — `ItemsManager`'s description field is the
+  (`lib/autoSave.ts`) so the toast names the field — `EntitiesManager`'s name/type cells are the
   reference. Create forms keep an explicit submit. Device-local view prefs (theme, collapsed panels)
   live in `stores/uiStore.ts` and change instantly with no toast; anything that must sync across
   devices belongs in the database instead. See the **`toast-notifications`** skill.
@@ -153,7 +158,7 @@ tree (`routeTree.gen.ts`) is generated. Anything that isn't a route is `-`-prefi
 `-components/`), which the generator ignores. Keep route files thin and colocate route-only code:
 
 - Used by **one route** → that route's own `-components/` / `-utils/` / `-constants/` folder (with its
-  test and story beside it). Reference: `routes/items/-components/ItemsManager.tsx`.
+  test and story beside it). Reference: `routes/entities/-components/EntitiesManager.tsx`.
 - Used by a **parent route and routes under it** → promote it to the highest `-` folder covering every
   user (the nearest common ancestor route), and no higher.
 - Used across `-` folders that **don't share the same direct parent route** → move it to

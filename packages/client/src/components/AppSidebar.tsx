@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 import { Link } from "@tanstack/react-router";
-import { Home, List } from "lucide-react";
+import { Home } from "lucide-react";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -30,11 +30,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: Home,
   },
   ...APP_PAGES,
-  {
-    to: "/items",
-    label: "Items",
-    icon: List,
-  },
 ];
 
 export function AppSidebar() {

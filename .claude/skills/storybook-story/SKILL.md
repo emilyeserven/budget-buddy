@@ -6,7 +6,7 @@ description: >-
   decision rule for fixtures. Use when asked to "add a story for X", "write a Storybook story", "add
   a variant to X's stories", "give this component Storybook coverage", "why does this component's
   story need MSW", or "the Storybook build fails". Mirrors `components/ui/button.stories.tsx`
-  (props-only, no MSW) and `routes/items/-components/ItemsManager.stories.tsx` (MSW, hook-backed). Cross-links the
+  (props-only, no MSW) and `routes/entities/-components/EntitiesManager.stories.tsx` (MSW, hook-backed). Cross-links the
   `test-structure` skill's "Stories: MSW handlers" section for the MSW mechanism — this skill does
   not re-document it.
 ---
@@ -30,10 +30,12 @@ So any story can render components that use TanStack Query hooks or `<Link>` wit
 
 - `<ComponentName>.stories.tsx`, colocated **flat** next to the component — no `stories/` subfolder.
 - `title` namespaces:
-  - `"Components/<ComponentName>"` for app components — shared ones in `src/components/` and
-    route-colocated ones in a `routes/**/-components/` folder (e.g. `"Components/ItemsManager"` for
-    `routes/items/-components/ItemsManager.tsx`) — matching the component's name exactly, no
-    sub-paths. A story moves with its component when it's promoted (see **`tanstack-routes`**).
+  - `"Pages/<Section>/<ComponentName>"` for route-colocated components in a `routes/**/-components/`
+    folder (e.g. `"Pages/Entities/EntitiesManager"` for
+    `routes/entities/-components/EntitiesManager.tsx`, `"Pages/Home/HomePage"` for
+    `routes/-components/HomePage.tsx`), with the component's name exactly as the last segment.
+  - `"Components/<ComponentName>"` for shared app components in `src/components/`. A story moves (and
+    is retitled) with its component when it's promoted (see **`tanstack-routes`**).
   - `"UI/<PrimitiveName>"` for the shadcn primitives in `src/components/ui/` (e.g. `"UI/Button"`).
 
 ## Meta/Story boilerplate
@@ -67,7 +69,7 @@ Every non-default story export gets a one-line JSDoc comment directly above it d
 variant demonstrates (a caption on `Default` is welcome when it adds information):
 
 ```tsx
-/** A couple of items; descriptions auto-save on blur. */
+/** Entities with auto-saving name, type and default split. */
 export const Default: Story = {};
 
 /** The empty state. */
@@ -77,14 +79,16 @@ export const Empty: Story = { /* … */ };
 
 ## Fixtures: always factories, never inline literals
 
-Build story data from `test-utils/factories.ts` `make*` functions (`makeItem`) — never hand-write an
+Build story data from `test-utils/factories.ts` `make*` functions (`makeEntity`, `makeAccount`, …) — never hand-write an
 inline object literal for a shared entity. Stories follow the same factory rule as tests, so a shape
 change to the entity only needs updating in one place:
 
 ```tsx
-import { makeItem } from "../test-utils/factories";
+import { EntityType } from "@app/types";
 
-const item = makeItem({ id: "item-2", name: "Second item", description: "With a description" });
+import { makeEntity } from "@/test-utils/factories";
+
+const friend = makeEntity({ id: "entity-2", name: "Sam", type: EntityType.Friend });
 ```
 
 ## The decision rule: props-only vs. MSW
@@ -94,31 +98,31 @@ Before writing a story, determine how the component gets its data:
 - **Receives data via props** (a presentational component or primitive) → set `args`, building any
   entity fixtures with `make*` factories. **No MSW.** Reference: `components/ui/button.stories.tsx`.
 
-- **Fetches its own data via a hook internally** (e.g. `ItemsManager`, which calls `useItems()` and
-  the item mutations) → the story **requires MSW**: import `apiHandlers` from
+- **Fetches its own data via a hook internally** (e.g. `EntitiesManager`, which calls `useEntities()`
+  and the entity mutations) → the story **requires MSW**: import `apiHandlers` from
   `test-utils/story-mocks.ts` and set `parameters: { msw: { handlers: apiHandlers } }` on `meta`.
-  Reference: `routes/items/-components/ItemsManager.stories.tsx`:
+  Reference: `routes/entities/-components/EntitiesManager.stories.tsx`:
 
   ```tsx
   import { http, HttpResponse } from "msw";
 
-  import { apiHandlers } from "../test-utils/story-mocks";
+  import { apiHandlers } from "@/test-utils/story-mocks";
 
   const meta = {
-    title: "Components/ItemsManager",
-    component: ItemsManager,
+    title: "Pages/Entities/EntitiesManager",
+    component: EntitiesManager,
     parameters: { msw: { handlers: apiHandlers } },
-  } satisfies Meta<typeof ItemsManager>;
+  } satisfies Meta<typeof EntitiesManager>;
 
   /** The empty state. */
   export const Empty: Story = {
     parameters: {
-      msw: { handlers: [http.get("/api/items", () => HttpResponse.json([])), ...apiHandlers] },
+      msw: { handlers: [http.get("/api/entities", () => HttpResponse.json([])), ...apiHandlers] },
     },
   };
   ```
 
-  `apiHandlers` is itself built from the same `make*` factories (`sampleItems`), so both branches
+  `apiHandlers` is itself built from the same `make*` factories (`sampleEntities`, `sampleAccounts`, …), so both branches
   trace back to one fixture source. A per-story override puts its own handler **first** and spreads
   `...apiHandlers` after it. When a component starts reading a new endpoint, add a default handler
   for it to `apiHandlers` rather than repeating it per story. For the full mechanism (decorators, and

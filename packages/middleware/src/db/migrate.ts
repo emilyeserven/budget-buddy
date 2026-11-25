@@ -41,6 +41,12 @@ interface RuntimeMigration {
 
 // Ordered list of idempotent, destructive/push-incompatible steps.
 const migrations: RuntimeMigration[] = [
+  // The starter's example Items entity was removed. Drop its table here, because push won't
+  // drop a table without an interactive prompt.
+  {
+    name: "drop starter items table",
+    run: db => db.execute(sql`DROP TABLE IF EXISTS "items"`),
+  },
   // CSV-ingest tables. Pre-created so push never hits its "new table on a populated database"
   // prompt. FK columns are plain uuid here; push adds the constraints and indexes afterwards.
   {

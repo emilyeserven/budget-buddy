@@ -22,6 +22,7 @@
     "fallow:check-skill": "node scripts/check-fallow-skill.mjs",
     "typecheck": "pnpm --filter=@app/types build && pnpm -r --filter=@app/middleware --filter=@app/client run typecheck",
     "studio": "pnpm --filter=@app/middleware run studio",
+    "storybook": "pnpm --filter=@app/types build && pnpm --filter=@app/client storybook",
     "push:dev": "pnpm --filter=@app/middleware run push:dev",
     "push:prod": "pnpm --filter=@app/middleware run push:prod",
     "prepare": "husky",

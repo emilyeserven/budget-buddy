@@ -32,7 +32,7 @@ Route every change through this decision table:
 | **New table**, or any column shipped in the same release as a new table | `schema.ts` **plus** an idempotent `migrate.ts` **pre-create** (`CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`). See the silent-skip caveat below — "push applies new tables on its own" is **not** reliable against a populated database. |
 | A lone **nullable** column or a **new index**, with no new table in the same release | `schema.ts` only — genuinely push-safe. |
 | **Single-column unique constraint** added to a table with data; **NOT NULL** column (even with a column `DEFAULT`) | `schema.ts` **plus** a `migrate.ts` pre-step — push alone hits the interactive prompt and crashes the non-TTY deploy. |
-| **Composite (multi-column) unique** | Declare it as **`uniqueIndex()`**, **never** a table `unique()` constraint (see below). For an existing table that already has the constraint, also add a `migrate.ts` step: `DROP CONSTRAINT IF EXISTS`, then `CREATE UNIQUE INDEX IF NOT EXISTS`. Single-column `unique()` (slugs, names — like `items.slug`) is fine and stays a `unique()`. |
+| **Composite (multi-column) unique** | Declare it as **`uniqueIndex()`**, **never** a table `unique()` constraint (see below). For an existing table that already has the constraint, also add a `migrate.ts` step: `DROP CONSTRAINT IF EXISTS`, then `CREATE UNIQUE INDEX IF NOT EXISTS`. Single-column `unique()` (names — like `entities.name`) is fine and stays a `unique()`. |
 | Drop / rename a column or table; `ALTER TYPE … ADD VALUE`; data-preserving transform | `migrate.ts` pre-step (guarded), then update `schema.ts` to match — push never destroys data itself. |
 | Seed rows / backfill values for existing rows | **Not** a migration — an `ensure*` / `backfill*` boot step in `packages/middleware/src/index.ts` (below). |
 
@@ -52,11 +52,12 @@ existing table in the same release) in `migrate.ts` with idempotent `IF NOT EXIS
 Declare FK columns as a plain `uuid` and let push add the FK constraint afterward (that part is
 additive and never prompts).
 
-Example — a new `widgets` table plus a nullable `items.widget_id` column in the same release:
+Example — a new `widgets` table plus a nullable `entities.widget_id` column in the same release
+(the real `pre-create entities table` / `pre-create accounts table` steps follow the same shape):
 
 ```ts
 // packages/middleware/src/db/migrate.ts
-import { sql } from "drizzle-orm"; // not imported yet in the starter — add it with your first step
+import { sql } from "drizzle-orm"; // already imported
 
 const migrations: RuntimeMigration[] = [
   {
@@ -64,15 +65,15 @@ const migrations: RuntimeMigration[] = [
     run: db => db.execute(sql`CREATE TABLE IF NOT EXISTS "widgets" (
       "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
       "name" text NOT NULL,
-      "slug" text NOT NULL,
+      "entity_id" uuid,
       "created_at" timestamp with time zone DEFAULT now() NOT NULL,
       "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-      CONSTRAINT "widgets_slug_unique" UNIQUE("slug")
+      CONSTRAINT "widgets_name_unique" UNIQUE("name")
     )`),
   },
   {
-    name: "pre-add items.widget_id",
-    run: db => db.execute(sql`ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "widget_id" uuid`),
+    name: "pre-add entities.widget_id",
+    run: db => db.execute(sql`ALTER TABLE "entities" ADD COLUMN IF NOT EXISTS "widget_id" uuid`),
   },
 ];
 ```
@@ -93,8 +94,10 @@ prefer it for any composite unique so the trap can't recur.
 
 ## Writing a `migrate.ts` pre-step
 
-The `migrations` array in `packages/middleware/src/db/migrate.ts` is **empty** on a fresh project; the
-mechanism is there for when you need it. Each entry is `{ name, run: db => db.execute(sql`…`) }`.
+The `migrations` array in `packages/middleware/src/db/migrate.ts` holds ordered steps — today a
+`DROP TABLE IF EXISTS "items"` (the removed starter entity) and the `CREATE TABLE IF NOT EXISTS`
+pre-creates for `entities`, `csv_formats`, `accounts`, `transactions`. Each entry is
+`{ name, run: db => db.execute(sql`…`) }`.
 
 Rules (each one has bitten before):
 
@@ -119,7 +122,7 @@ tag the last release that carries them and document that upgrades must pass thro
 
 ## Seeds and backfills — boot steps, not migrations
 
-Data that depends on application logic (built-in rows, derived slugs, jsonb reshapes) runs from the
+Data that depends on application logic (built-in rows, derived values, jsonb reshapes) runs from the
 boot-steps `try` block in `packages/middleware/src/index.ts` (today it only holds `ensureBucket()`).
 Two shapes:
 
@@ -140,7 +143,7 @@ Rules:
   refactor):
   ```ts
   const defaultGroupId = await ensureDefaultGroup();
-  await ensureDefaultItems(defaultGroupId);
+  await ensureDefaultWidgets(defaultGroupId);
   ```
 - A seed that should run only until the user takes ownership must distinguish `null`
   (never initialized) from an explicit empty value the user chose.
