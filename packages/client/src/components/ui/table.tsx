@@ -64,14 +64,12 @@ function TableRow({
   return (
     <tr
       data-slot="table-row"
-      className={cn(
-        `
-          border-b transition-colors
-          hover:bg-muted/50
-          data-[state=selected]:bg-muted
-        `,
-        className,
-      )}
+      className={cn(`
+        border-b transition-colors
+        hover:bg-muted/50
+        has-aria-expanded:bg-muted/50
+        data-[state=selected]:bg-muted
+      `, className)}
       {...props}
     />
   );
@@ -83,15 +81,11 @@ function TableHead({
   return (
     <th
       data-slot="table-head"
-      className={cn(
-        `
-          h-10 px-3 text-left align-middle font-medium whitespace-nowrap
-          text-muted-foreground
-          has-[[role=checkbox]]:pr-0
-          *:[[role=checkbox]]:translate-y-[2px]
-        `,
-        className,
-      )}
+      className={cn(`
+        h-10 px-2 text-left align-middle font-medium whitespace-nowrap
+        text-foreground
+        has-[[role=checkbox]]:pr-0
+      `, className)}
       {...props}
     />
   );
@@ -103,21 +97,18 @@ function TableCell({
   return (
     <td
       data-slot="table-cell"
-      className={cn(
-        `
-          px-3 py-2 align-middle
-          has-[[role=checkbox]]:pr-0
-          *:[[role=checkbox]]:translate-y-[2px]
-        `,
-        className,
-      )}
+      className={cn(`
+        p-2 align-middle whitespace-nowrap
+        has-[[role=checkbox]]:pr-0
+      `, className)}
       {...props}
     />
   );
 }
 
 function TableCaption({
-  className, ...props
+  className,
+  ...props
 }: React.ComponentProps<"caption">) {
   return (
     <caption
@@ -130,11 +121,11 @@ function TableCaption({
 
 export {
   Table,
+  TableHeader,
   TableBody,
-  TableCaption,
-  TableCell,
   TableFooter,
   TableHead,
-  TableHeader,
   TableRow,
+  TableCell,
+  TableCaption,
 };

@@ -2,8 +2,13 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { Search } from "lucide-react";
 
-import { Input } from "./input";
-import { InputAddon, InputGroup } from "./input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+} from "./input-group";
 
 const meta = {
   title: "UI/InputGroup",
@@ -17,13 +22,10 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   render: () => (
     <InputGroup className="w-72">
-      <InputAddon align="inline-start">
-        <Search className="size-4 text-muted-foreground" />
-      </InputAddon>
-      <Input
-        className="ps-8"
-        placeholder="Search…"
-      />
+      <InputGroupInput placeholder="Search…" />
+      <InputGroupAddon align="inline-start">
+        <Search />
+      </InputGroupAddon>
     </InputGroup>
   ),
 };
@@ -32,14 +34,25 @@ export const Default: Story = {
 export const TrailingAddon: Story = {
   render: () => (
     <InputGroup className="w-72">
-      <Input
-        className="pe-12"
+      <InputGroupInput
         placeholder="0"
         type="number"
       />
-      <InputAddon align="inline-end">
-        <span className="text-sm text-muted-foreground">px</span>
-      </InputAddon>
+      <InputGroupAddon align="inline-end">
+        <InputGroupText>px</InputGroupText>
+      </InputGroupAddon>
+    </InputGroup>
+  ),
+};
+
+/** An inline button inside the group (e.g. a submit or clear action). */
+export const WithButton: Story = {
+  render: () => (
+    <InputGroup className="w-72">
+      <InputGroupInput placeholder="Email address" />
+      <InputGroupAddon align="inline-end">
+        <InputGroupButton>Subscribe</InputGroupButton>
+      </InputGroupAddon>
     </InputGroup>
   ),
 };
